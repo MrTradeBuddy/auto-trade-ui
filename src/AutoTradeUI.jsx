@@ -1,98 +1,70 @@
-// Simple React Auto Trade UI (Styled Version with RSI Notification)
+import React, { useState } from "react";
 
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+const AutoTradeUI = () => {
+  const [pair, setPair] = useState("BTCUSDT");
+  const [price, setPrice] = useState("-");
+  const [rsi, setRsi] = useState("-");
+  const [signal, setSignal] = useState("-");
+  const [loading, setLoading] = useState(false);
 
-export default function AutoTradeUI() {
-  const [pair, setPair] = useState('BTCUSDT');
-  const [data, setData] = useState({});
-  const [status, setStatus] = useState('Waiting...');
+  const backendUrl = "https://mt5-autotrade-server.onrender.com";
 
-  const fetchStatus = async () => {
+  const handleOrder = async (action) => {
+    setLoading(true);
     try {
-      const res = await axios.get(`https://mt5-autotrade-server.onrender.com/status/${pair.toLowerCase()}`);
-      setData(res.data);
-
-      // Notification Trigger for RSI
-      if (res.data?.rsi >= 80) {
-        notify(`${pair} RSI is overbought (${res.data.rsi})`);
-      } else if (res.data?.rsi <= 20) {
-        notify(`${pair} RSI is oversold (${res.data.rsi})`);
-      }
-
-    } catch (err) {
-      setData({ error: 'Unable to fetch data' });
-    }
-  };
-
-  const notify = (message) => {
-    if (Notification.permission === 'granted') {
-      new Notification('RSI Alert ⚠️', { body: message });
-    }
-  };
-
-  useEffect(() => {
-    if (Notification.permission !== 'granted') {
-      Notification.requestPermission();
-    }
-
-    fetchStatus();
-    const timer = setInterval(fetchStatus, 10000);
-    return () => clearInterval(timer);
-  }, [pair]);
-
-  const handleOrder = async (type) => {
-    try {
-      const res = await axios.post(`https://mt5-autotrade-server.onrender.com/order`, {
-        pair,
-        action: type
+      const response = await fetch(`${backendUrl}/order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pair, action }),
       });
-      setStatus(res.data.message || 'Order sent!');
-    } catch {
-      setStatus('Failed to send order');
+
+      const data = await response.json();
+      console.log("✅ Order Response:", data);
+
+      // Simulate mock updates
+      setSignal(action.toUpperCase());
+      setPrice("Live soon");
+      setRsi("Live soon");
+    } catch (error) {
+      console.error("❌ Order Error:", error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  // ❌ Removed useEffect call to invalid /status endpoint
+  // useEffect(() => {
+  //   fetch(`${backendUrl}/status/${pair}`)
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       setPrice(data.price);
+  //       setRsi(data.rsi);
+  //       setSignal(data.signal);
+  //     });
+  // }, [pair]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col items-center justify-center p-6">
-      <h1 className="text-3xl font-bold text-blue-800 mb-6 flex items-center gap-2">
-        <span>💹</span> Auto Trade Panel
-      </h1>
+    <div style={{ textAlign: "center", marginTop: "50px" }}>
+      <h2>📈 Auto Trade Panel</h2>
 
-      <select
-        value={pair}
-        onChange={(e) => setPair(e.target.value)}
-        className="mb-6 p-2 px-4 border border-blue-300 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-      >
-        <option>BTCUSDT</option>
-        <option>EURUSD</option>
-        <option>ETHUSDT</option>
+      <select value={pair} onChange={(e) => setPair(e.target.value)}>
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="EURUSD">EURUSD</option>
+        <option value="XAUUSD">XAUUSD</option>
       </select>
 
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md text-center transition-all duration-300 ease-in-out">
-        <div className="space-y-2 text-gray-700">
-          <p><strong>📈 Price:</strong> {data?.price || '–'}</p>
-          <p><strong>📊 RSI:</strong> {data?.rsi || '–'}</p>
-          <p><strong>📡 Signal:</strong> {data?.signal || '–'}</p>
-        </div>
+      <div style={{ marginTop: "20px", border: "1px solid #ccc", padding: "20px", display: "inline-block" }}>
+        <p><strong>Price:</strong> {price}</p>
+        <p><strong>RSI:</strong> {rsi}</p>
+        <p><strong>Signal:</strong> {signal}</p>
 
-        <div className="flex justify-center gap-6 mt-6">
-          <button
-            onClick={() => handleOrder('buy')}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-full shadow"
-          >
-            Buy
-          </button>
-          <button
-            onClick={() => handleOrder('sell')}
-            className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full shadow"
-          >
-            Sell
-          </button>
-        </div>
+        <button style={{ marginRight: "10px", padding: "10px 20px", background: "green", color: "white" }} onClick={() => handleOrder("buy")}>Buy</button>
+        <button style={{ padding: "10px 20px", background: "red", color: "white" }} onClick={() => handleOrder("sell")}>Sell</button>
 
-        <p className="mt-4 text-sm text-gray-500 animate-pulse">📬 {status}</p>
+        <p style={{ marginTop: "10px" }}>{loading ? "📊 Sending..." : "📉 Waiting..."}</p>
       </div>
     </div>
   );
-}
+};
+
+export default AutoTradeUI;
